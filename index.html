@@ -1781,6 +1781,99 @@
     </div>
 
     <script>
+        // ==================== JSONBin 云端数据库配置 ====================
+        const CLOUD_CONFIG = {
+            apiKey: '$2a$10$QHP23hLowMbJGPBrWuPHf.qSGKlNpLY2xs5dmueye8N2JB.bSfKva',
+            binId: '69da601c10716a4d5de5a8a8',
+            baseUrl: 'https://api.jsonbin.io/v3/b'
+        };
+
+        // 云端数据管理器
+        const CloudDB = {
+            data: null,
+            isSyncing: false,
+            lastSync: null,
+            
+            // 从云端加载数据
+            async load() {
+                try {
+                    const response = await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}/latest`, {
+                        headers: {
+                            'X-Master-Key': CLOUD_CONFIG.apiKey
+                        }
+                    });
+                    const result = await response.json();
+                    if (result.record) {
+                        this.data = result.record;
+                        // 同步到本地
+                        Object.keys(this.data).forEach(key => {
+                            localStorage.setItem(key, JSON.stringify(this.data[key]));
+                        });
+                        showToast('数据已同步', 'success');
+                    }
+                } catch (error) {
+                    console.log('云端同步失败，使用本地数据');
+                    // 加载失败时从本地加载
+                    this.loadFromLocal();
+                }
+            },
+            
+            // 从本地加载数据
+            loadFromLocal() {
+                const keys = ['users', 'signRules', 'products', 'whitelist', 'exchanges', 'admins', 'maintenance', 'punishRecords', 'awardRecords', 'proxyFee', 'proxySignRecords', 'maintenanceRecords'];
+                this.data = {};
+                keys.forEach(key => {
+                    this.data[key] = DB.get(key, this.getDefaultData(key));
+                });
+            },
+            
+            // 获取默认数据
+            getDefaultData(key) {
+                const defaults = {
+                    users: [],
+                    signRules: [{days: 1, points: 10}],
+                    products: [],
+                    whitelist: [],
+                    exchanges: [],
+                    admins: [],
+                    maintenance: {on: false, compensation: 0},
+                    punishRecords: [],
+                    awardRecords: [],
+                    proxyFee: 10,
+                    proxySignRecords: [],
+                    maintenanceRecords: []
+                };
+                return defaults[key] || null;
+            },
+            
+            // 保存到云端
+            async save(key, value) {
+                // 先保存到本地
+                DB.set(key, value);
+                this.data[key] = value;
+                
+                // 异步保存到云端
+                try {
+                    await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': CLOUD_CONFIG.apiKey
+                        },
+                        body: JSON.stringify(this.data)
+                    });
+                } catch (error) {
+                    console.log('云端保存失败，数据已保存在本地');
+                }
+            },
+            
+            // 初始化
+            async init() {
+                this.loadFromLocal();
+                await this.load();
+            }
+        };
+
         // ==================== 数据存储 ====================
         const DB = {
             get(key, defaultValue = null) {
@@ -1789,27 +1882,36 @@
             },
             set(key, value) {
                 localStorage.setItem(key, JSON.stringify(value));
+                // 同时保存到云端
+                CloudDB.data = CloudDB.data || {};
+                CloudDB.data[key] = value;
+                this.saveToCloud();
+            },
+            async saveToCloud() {
+                if (CloudDB.isSyncing) return;
+                CloudDB.isSyncing = true;
+                try {
+                    await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': CLOUD_CONFIG.apiKey
+                        },
+                        body: JSON.stringify(CloudDB.data)
+                    });
+                } catch (error) {
+                    console.log('云端保存失败');
+                }
+                CloudDB.isSyncing = false;
             }
         };
 
-        // 初始化数据
-        function initData() {
-            if (!DB.get('users')) DB.set('users', []);
-            if (!DB.get('signRules')) DB.set('signRules', [{days: 1, points: 10}]);
-            if (!DB.get('products')) DB.set('products', []);
-            if (!DB.get('whitelist')) DB.set('whitelist', []);
-            if (!DB.get('exchanges')) DB.set('exchanges', []);
-            if (!DB.get('admins')) DB.set('admins', []);
-            if (!DB.get('maintenance')) DB.set('maintenance', {on: false, compensation: 0});
-            if (!DB.get('punishRecords')) DB.set('punishRecords', []);
-            if (!DB.get('awardRecords')) DB.set('awardRecords', []);
-            if (!DB.get('proxyFee')) DB.set('proxyFee', 10);
-            if (!DB.get('proxySignRecords')) DB.set('proxySignRecords', []);
-            if (!DB.get('maintenanceRecords')) DB.set('maintenanceRecords', []);
-            
-            // 创建者账号
+        // 页面加载时初始化云端数据
+        window.addEventListener('load', async () => {
+            await CloudDB.init();
+            // 确保创建者账号存在
             if (!DB.get('admins').find(a => a.account === 'niezhu')) {
-                const admins = DB.get('admins');
+                const admins = DB.get('admins') || [];
                 admins.push({
                     account: 'niezhu',
                     password: 'niezhuQQ',
@@ -1819,7 +1921,8 @@
                 });
                 DB.set('admins', admins);
             }
-        }
+            init();
+        });
 
         // ==================== 状态管理 ====================
         let currentUser = null;
@@ -3632,18 +3735,16 @@
         // ==================== PWA 初始化 ====================
         // 注册 Service Worker
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker 注册成功');
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker 注册失败:', err);
-                    });
-            });
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker 注册成功');
+                })
+                .catch(err => {
+                    console.log('ServiceWorker 注册失败:', err);
+                });
         }
 
-        init();
+        // 注意：init() 已在 CloudDB.init() 完成后调用
     </script>
 </body>
 </html>

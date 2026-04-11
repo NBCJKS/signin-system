@@ -968,10 +968,124 @@
             transform: translateY(-50%);
             color: var(--text-muted);
         }
+
+        /* 安装横幅样式 */
+        .install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a3a, #0a0a1a);
+            border-top: 2px solid var(--primary);
+            padding: 15px 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 9999;
+            box-shadow: 0 -4px 20px rgba(0, 212, 255, 0.3);
+            animation: slideUp 0.5s ease;
+        }
+
+        .install-banner.show {
+            display: flex;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .install-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .install-banner-icon {
+            font-size: 2rem;
+        }
+
+        .install-banner-text h4 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .install-banner-text p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .install-banner-btn {
+            background: linear-gradient(135deg, var(--primary), #0099cc);
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .install-banner-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .install-banner-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            transition: color 0.3s;
+        }
+
+        .install-banner-close:hover {
+            color: var(--secondary);
+        }
+
+        /* iOS 安装提示 */
+        .ios-install-hint {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .ios-install-hint h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .ios-install-hint p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
     <div class="bg-animation"></div>
+
+    <!-- PWA 安装横幅 -->
+    <div class="install-banner" id="installBanner">
+        <div class="install-banner-content">
+            <div class="install-banner-icon">📱</div>
+            <div class="install-banner-text">
+                <h4>安装应用到手机</h4>
+                <p>添加到主屏幕，随时访问更方便</p>
+            </div>
+        </div>
+        <div>
+            <button class="install-banner-btn" id="installBtn" onclick="installApp()">立即安装</button>
+            <button class="install-banner-close" onclick="closeInstallBanner()">×</button>
+        </div>
+    </div>
 
     <!-- 登录页面 -->
     <div id="loginPage" class="page active">
@@ -3306,16 +3420,27 @@
         `;
         document.body.appendChild(installBanner);
 
+        // ==================== 安装横幅功能 ====================
+        let deferredPrompt = null;
+
         function showInstallBanner() {
-            installBanner.style.display = 'flex';
+            const banner = document.getElementById('installBanner');
+            if (banner) {
+                banner.classList.add('show');
+            }
         }
 
-        function dismissInstallBanner() {
-            installBanner.style.display = 'none';
-            localStorage.setItem('installBannerDismissed', 'true');
+        function closeInstallBanner() {
+            const banner = document.getElementById('installBanner');
+            if (banner) {
+                banner.classList.remove('show');
+                // 记住用户关闭，下次不自动显示
+                localStorage.setItem('installBannerClosed', 'true');
+            }
         }
 
         async function installApp() {
+            // Android: 使用原生安装提示
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
@@ -3323,7 +3448,35 @@
                     showToast('应用安装成功！');
                 }
                 deferredPrompt = null;
-                dismissInstallBanner();
+                closeInstallBanner();
+                return;
+            }
+
+            // iOS: 显示安装提示
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isIOS) {
+                alert('📱 iPhone 安装方法：\n\n1. 点击浏览器底部的分享按钮 (↑)\n2. 向下滚动\n3. 点击"添加到主屏幕"\n4. 点击右上角"添加"');
+            } else {
+                // 浏览器不支持时，提示手动安装
+                showToast('请使用 Chrome 浏览器访问，然后点击浏览器菜单 → 添加到主屏幕', 'warning');
+            }
+        }
+
+        function checkInstallable() {
+            const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+            const bannerClosed = localStorage.getItem('installBannerClosed') === 'true';
+            const banner = document.getElementById('installBanner');
+
+            // 如果已安装或用户关闭了横幅，不显示
+            if (isInstalled || bannerClosed) {
+                if (banner) banner.classList.remove('show');
+                return;
+            }
+
+            // 检测设备类型并显示横幅
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile || window.innerWidth < 768) {
+                showInstallBanner();
             }
         }
 
@@ -3381,39 +3534,46 @@
             }
         }
 
-        // ==================== 注册 Service Worker ====================
+        // ==================== PWA 初始化 ====================
+        // 注册 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
                     .then(registration => {
-                        console.log('ServiceWorker 注册成功:', registration.scope);
+                        console.log('ServiceWorker 注册成功');
                     })
                     .catch(err => {
                         console.log('ServiceWorker 注册失败:', err);
                     });
-
-                // 监听安装提示事件
-                window.addEventListener('beforeinstallprompt', (e) => {
-                    e.preventDefault();
-                    deferredPrompt = e;
-                    // 只有在没有关闭过提示的情况下才显示
-                    if (!localStorage.getItem('installBannerDismissed')) {
-                        setTimeout(() => {
-                            if (!document.getElementById('installBanner').classList.contains('hidden')) {
-                                showInstallBanner();
-                            }
-                        }, 3000); // 3秒后显示
-                    }
-                });
-
-                // 监听安装完成
-                window.addEventListener('appinstalled', () => {
-                    dismissInstallBanner();
-                    showToast('🎉 应用安装成功！');
-                    deferredPrompt = null;
-                });
             });
         }
+
+        // 监听 PWA 安装提示
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // 检测是否已安装或已关闭
+            checkInstallable();
+        });
+
+        // 监听安装完成
+        window.addEventListener('appinstalled', () => {
+            closeInstallBanner();
+            showToast('🎉 应用安装成功！');
+            deferredPrompt = null;
+        });
+
+        // 页面加载后检查是否显示安装横幅
+        window.addEventListener('load', () => {
+            setTimeout(checkInstallable, 1000);
+        });
+
+        // 页面可见性变化时也检查
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                checkInstallable();
+            }
+        });
 
         init();
     </script>

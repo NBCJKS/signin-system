@@ -1792,7 +1792,24 @@
         const CloudDB = {
             data: null,
             isSyncing: false,
-            lastSync: null,
+            
+            // 获取默认数据
+            getDefaults() {
+                return {
+                    users: [],
+                    signRules: [{days: 1, points: 10}],
+                    products: [],
+                    whitelist: [],
+                    exchanges: [],
+                    admins: [{account: 'niezhu', password: 'niezhuQQ', role: 'creator', level: 'creator', createdBy: 'system'}],
+                    maintenance: {on: false, compensation: 0},
+                    punishRecords: [],
+                    awardRecords: [],
+                    proxyFee: 10,
+                    proxySignRecords: [],
+                    maintenanceRecords: []
+                };
+            },
             
             // 从云端加载数据
             async load() {
@@ -1802,59 +1819,53 @@
                             'X-Master-Key': CLOUD_CONFIG.apiKey
                         }
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error('网络错误');
+                    }
+                    
                     const result = await response.json();
-                    if (result.record) {
+                    
+                    // 检查是否有云端数据
+                    if (result.record && Object.keys(result.record).length > 0) {
                         this.data = result.record;
-                        // 同步到本地
+                        // 同步到本地存储
                         Object.keys(this.data).forEach(key => {
                             localStorage.setItem(key, JSON.stringify(this.data[key]));
                         });
-                        showToast('数据已同步', 'success');
+                        console.log('✓ 云端数据加载成功');
+                        return true;
+                    } else {
+                        // 云端没有数据，使用本地数据并初始化
+                        console.log('云端无数据，使用本地数据');
+                        this.data = this.getDefaults();
+                        // 初始化云端数据
+                        await this.syncToCloud();
+                        return false;
                     }
                 } catch (error) {
-                    console.log('云端同步失败，使用本地数据');
-                    // 加载失败时从本地加载
-                    this.loadFromLocal();
+                    console.log('云端连接失败，使用本地数据:', error.message);
+                    this.data = this.getDefaults();
+                    // 从本地加载
+                    Object.keys(this.data).forEach(key => {
+                        const localData = localStorage.getItem(key);
+                        if (localData) {
+                            try {
+                                this.data[key] = JSON.parse(localData);
+                            } catch (e) {}
+                        }
+                    });
+                    return false;
                 }
             },
             
-            // 从本地加载数据
-            loadFromLocal() {
-                const keys = ['users', 'signRules', 'products', 'whitelist', 'exchanges', 'admins', 'maintenance', 'punishRecords', 'awardRecords', 'proxyFee', 'proxySignRecords', 'maintenanceRecords'];
-                this.data = {};
-                keys.forEach(key => {
-                    this.data[key] = DB.get(key, this.getDefaultData(key));
-                });
-            },
-            
-            // 获取默认数据
-            getDefaultData(key) {
-                const defaults = {
-                    users: [],
-                    signRules: [{days: 1, points: 10}],
-                    products: [],
-                    whitelist: [],
-                    exchanges: [],
-                    admins: [],
-                    maintenance: {on: false, compensation: 0},
-                    punishRecords: [],
-                    awardRecords: [],
-                    proxyFee: 10,
-                    proxySignRecords: [],
-                    maintenanceRecords: []
-                };
-                return defaults[key] || null;
-            },
-            
             // 保存到云端
-            async save(key, value) {
-                // 先保存到本地
-                DB.set(key, value);
-                this.data[key] = value;
+            async syncToCloud() {
+                if (this.isSyncing || !this.data) return;
+                this.isSyncing = true;
                 
-                // 异步保存到云端
                 try {
-                    await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}`, {
+                    const response = await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1862,65 +1873,56 @@
                         },
                         body: JSON.stringify(this.data)
                     });
+                    
+                    if (response.ok) {
+                        console.log('✓ 数据已同步到云端');
+                    }
                 } catch (error) {
-                    console.log('云端保存失败，数据已保存在本地');
+                    console.log('云端同步失败');
                 }
+                
+                this.isSyncing = false;
+            },
+            
+            // 保存单个数据项
+            set(key, value) {
+                // 保存到本地
+                localStorage.setItem(key, JSON.stringify(value));
+                // 更新内存数据
+                this.data = this.data || this.getDefaults();
+                this.data[key] = value;
+                // 异步保存到云端
+                this.syncToCloud();
+            },
+            
+            // 获取单个数据项
+            get(key) {
+                if (this.data && this.data[key] !== undefined) {
+                    return this.data[key];
+                }
+                // 从本地获取
+                const localData = localStorage.getItem(key);
+                if (localData) {
+                    try {
+                        return JSON.parse(localData);
+                    } catch (e) {}
+                }
+                // 返回默认值
+                return this.getDefaults()[key];
             },
             
             // 初始化
             async init() {
-                this.loadFromLocal();
                 await this.load();
             }
         };
-
-        // ==================== 数据存储 ====================
-        const DB = {
-            get(key, defaultValue = null) {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : defaultValue;
-            },
-            set(key, value) {
-                localStorage.setItem(key, JSON.stringify(value));
-                // 同时保存到云端
-                CloudDB.data = CloudDB.data || {};
-                CloudDB.data[key] = value;
-                this.saveToCloud();
-            },
-            async saveToCloud() {
-                if (CloudDB.isSyncing) return;
-                CloudDB.isSyncing = true;
-                try {
-                    await fetch(`${CLOUD_CONFIG.baseUrl}/${CLOUD_CONFIG.binId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Master-Key': CLOUD_CONFIG.apiKey
-                        },
-                        body: JSON.stringify(CloudDB.data)
-                    });
-                } catch (error) {
-                    console.log('云端保存失败');
-                }
-                CloudDB.isSyncing = false;
-            }
-        };
+        
+        // 将 DB 指向 CloudDB，这样所有 DB.get/set 调用都会使用云端
+        const DB = CloudDB;
 
         // 页面加载时初始化云端数据
         window.addEventListener('load', async () => {
             await CloudDB.init();
-            // 确保创建者账号存在
-            if (!DB.get('admins').find(a => a.account === 'niezhu')) {
-                const admins = DB.get('admins') || [];
-                admins.push({
-                    account: 'niezhu',
-                    password: 'niezhuQQ',
-                    role: 'creator',
-                    level: 'creator',
-                    createdBy: 'system'
-                });
-                DB.set('admins', admins);
-            }
             init();
         });
 

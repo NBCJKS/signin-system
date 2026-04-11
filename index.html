@@ -1,0 +1,3421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#00d4ff">
+    <meta name="description" content="每日签到获得积分，积分兑换好礼">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="签到积分">
+    <title>签到积分系统</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- iOS 图标 -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%230a0a1a' width='512' height='512' rx='100'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='280'>🎯</text></svg>"></parameter>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00d4ff;
+            --secondary: #ff6b6b;
+            --accent: #ffd93d;
+            --bg-dark: #0a0a1a;
+            --bg-card: #12122a;
+            --text: #e0e0e0;
+            --text-muted: #888;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 背景动画 */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a1a 100%);
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* 通用容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 页面标题 */
+        .page-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #0099cc);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #33ddff, var(--primary));
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--secondary), #cc5555);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #ff8888, var(--secondary));
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--accent), #ccaa00);
+            color: #000;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #ffe066, var(--accent));
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00cc88, #009966);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #00ff99, #00cc88);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 输入框 */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+
+        /* 表格 */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 页面容器 */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 登录页面 */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .login-box .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-box .logo h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .login-tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .login-tab {
+            flex: 1;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .login-tab:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .login-tab:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+
+        .login-tab.active {
+            background: var(--primary);
+            color: #000;
+        }
+
+        /* 用户主界面 */
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 16px;
+        }
+
+        .user-info h2 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .user-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .user-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .action-card {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-card:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .action-card .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .action-card h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .action-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* 管理后台 */
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .admin-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .admin-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        }
+
+        .admin-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .admin-card h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .admin-card p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: var(--primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--secondary);
+        }
+
+        /* 维护模式弹窗 */
+        .maintenance-modal {
+            text-align: center;
+        }
+
+        .maintenance-modal .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .maintenance-modal h2 {
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+
+        .maintenance-modal p {
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        /* 通知提示 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+            font-weight: 500;
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #00cc88, #009966);
+            color: #fff;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, var(--secondary), #cc5555);
+            color: #fff;
+        }
+
+        .toast.warning {
+            background: linear-gradient(135deg, var(--accent), #ccaa00);
+            color: #000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 签到按钮 */
+        .sign-btn {
+            width: 100%;
+            padding: 30px;
+            font-size: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .sign-btn.signed {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* 商城商品卡片 */
+        .mall-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+
+        .product-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+
+        .product-image {
+            height: 150px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(255, 107, 107, 0.2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+        }
+
+        .product-info {
+            padding: 20px;
+        }
+
+        .product-info h3 {
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .product-info .price {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .product-info .stock {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        /* 返回按钮 */
+        .back-btn {
+            margin-bottom: 20px;
+        }
+
+        /* 列表项 */
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .list-item-info h4 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .list-item-info p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 步骤指示器 */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+        }
+
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .step.active .step-number {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .step.completed .step-number {
+            background: #00cc88;
+            color: #fff;
+        }
+
+        .step-label {
+            color: var(--text-muted);
+        }
+
+        .step.active .step-label {
+            color: var(--primary);
+        }
+
+        .step-line {
+            width: 50px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 10px;
+        }
+
+        /* 二维码上传区 */
+        .qr-upload {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .qr-upload:hover {
+            border-color: var(--primary);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .qr-upload .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .qr-preview {
+            max-width: 200px;
+            margin: 15px auto;
+            border-radius: 8px;
+        }
+
+        /* 角色标签 */
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .role-creator {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+            color: #fff;
+        }
+
+        .role-high {
+            background: linear-gradient(135deg, var(--primary), #0099cc);
+            color: #000;
+        }
+
+        .role-medium {
+            background: linear-gradient(135deg, var(--accent), #ccaa00);
+            color: #000;
+        }
+
+        .role-low {
+            background: linear-gradient(135deg, #888, #666);
+            color: #fff;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        /* 签到日历 */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .calendar-day.signed {
+            background: linear-gradient(135deg, rgba(0, 204, 136, 0.3), rgba(0, 153, 102, 0.3));
+            border: 1px solid #00cc88;
+        }
+
+        .calendar-day.today {
+            border: 2px solid var(--primary);
+        }
+
+        .calendar-day .day-num {
+            font-weight: bold;
+        }
+
+        .calendar-day .day-points {
+            font-size: 0.7rem;
+            color: var(--accent);
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 153, 204, 0.1));
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stats-card .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .stats-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stats-card .label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* 弹窗表单网格 */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        /* 确认对话框 */
+        .confirm-dialog {
+            text-align: center;
+        }
+
+        .confirm-dialog .icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .confirm-dialog h3 {
+            margin-bottom: 15px;
+        }
+
+        .confirm-dialog p {
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        /* 权限不足提示 */
+        .permission-denied {
+            text-align: center;
+            padding: 50px;
+        }
+
+        .permission-denied .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .permission-denied h3 {
+            color: var(--secondary);
+            margin-bottom: 15px;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 1.8rem;
+            }
+
+            .user-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .user-stats {
+                justify-content: center;
+            }
+
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal {
+                padding: 20px;
+            }
+        }
+
+        /* 导航栏 */
+        .navbar {
+            background: rgba(18, 18, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            font-size: 1.3rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar-user span {
+            color: var(--primary);
+        }
+
+        /* 搜索框 */
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 45px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .search-box .icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+
+    <!-- 登录页面 -->
+    <div id="loginPage" class="page active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="logo">
+                    <h1>🎯 签到积分系统</h1>
+                    <p style="color: var(--text-muted); margin-top: 10px;">每日签到，积分兑换好礼</p>
+                </div>
+
+                <div class="card">
+                    <div class="login-tabs">
+                        <button class="login-tab active" data-tab="user">👤 用户登录</button>
+                        <button class="login-tab" data-tab="admin">🔐 管理员登录</button>
+                    </div>
+
+                    <!-- 用户登录 -->
+                    <div id="userLoginForm">
+                        <div class="input-group">
+                            <label>请输入您的名称</label>
+                            <input type="text" id="userNameInput" placeholder="输入名称即可登录" maxlength="20">
+                        </div>
+                        <button class="btn btn-primary sign-btn" onclick="loginAsUser()" style="width: 100%;">
+                            登 录
+                        </button>
+                    </div>
+
+                    <!-- 管理员登录 -->
+                    <div id="adminLoginForm" style="display: none;">
+                        <div class="input-group">
+                            <label>管理员账号</label>
+                            <input type="text" id="adminAccountInput" placeholder="输入账号">
+                        </div>
+                        <div class="input-group">
+                            <label>管理员密码</label>
+                            <input type="password" id="adminPasswordInput" placeholder="输入密码">
+                        </div>
+                        <div class="input-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <input type="checkbox" id="rememberAdminCheck" style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="rememberAdminCheck" style="margin: 0; cursor: pointer; color: var(--text-muted);">记住账号和密码</label>
+                        </div>
+                        <button class="btn btn-primary" onclick="loginAsAdmin()" style="width: 100%;">
+                            管理员登录
+                        </button>
+                        <button class="btn btn-secondary" onclick="showTab('user')" style="width: 100%; margin-top: 10px;">
+                            返回用户登录
+                        </button>
+                    </div>
+                </div>
+
+                <p style="text-align: center; color: var(--text-muted); margin-top: 20px; font-size: 0.9rem;">
+                    提示：管理员入口在右上角
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户主界面 -->
+    <div id="userPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">🎯 签到积分系统</div>
+            <div class="navbar-user">
+                <span id="currentUserName"></span>
+                <button class="btn btn-secondary btn-small" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <h1 class="page-title">欢迎回来</h1>
+
+            <div class="user-header card">
+                <div class="user-info">
+                    <h2 id="welcomeUserName">用户名</h2>
+                    <p style="color: var(--text-muted);">当前身份：普通用户</p>
+                </div>
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="currentPoints">0</div>
+                        <div class="stat-label">我的积分</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalSignDays">0</div>
+                        <div class="stat-label">累计签到</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalExchanges">0</div>
+                        <div class="stat-label">兑换次数</div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="signButton" class="btn btn-success sign-btn" onclick="doSign()">
+                📅 立即签到
+            </button>
+
+            <div class="user-actions">
+                <div class="action-card" onclick="showPage('mallPage')">
+                    <div class="icon">🛒</div>
+                    <h3>积分商城</h3>
+                    <p>用积分兑换各种好礼</p>
+                </div>
+                <div class="action-card" onclick="showExchangeRecords()">
+                    <div class="icon">📋</div>
+                    <h3>兑换记录</h3>
+                    <p>查看我的兑换历史</p>
+                </div>
+                <div class="action-card" onclick="showSignHistory()">
+                    <div class="icon">📊</div>
+                    <h3>签到记录</h3>
+                    <p>查看我的签到日历</p>
+                </div>
+                <div class="action-card" onclick="showRanking()">
+                    <div class="icon">🏆</div>
+                    <h3>积分排行</h3>
+                    <p>查看积分排行榜</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户商城页面 -->
+    <div id="mallPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">🛒 积分商城</div>
+            <div class="navbar-user">
+                <span id="mallUserName"></span>
+                <button class="btn btn-secondary btn-small" onclick="showPage('userPage')">返回主页</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('userPage')">← 返回</button>
+            <h1 class="page-title">积分商城</h1>
+
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="icon">💰</div>
+                    <div class="value" id="mallMyPoints">0</div>
+                    <div class="label">我的积分</div>
+                </div>
+                <div class="stats-card">
+                    <div class="icon">🎁</div>
+                    <div class="value" id="mallProductCount">0</div>
+                    <div class="label">商品数量</div>
+                </div>
+            </div>
+
+            <div class="search-box">
+                <span class="icon">🔍</span>
+                <input type="text" id="mallSearchInput" placeholder="搜索商品..." oninput="filterProducts()">
+            </div>
+
+            <div class="mall-grid" id="productList">
+                <!-- 商品列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理后台主界面 -->
+    <div id="adminPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">⚙️ 管理后台</div>
+            <div class="navbar-user">
+                <span id="adminDisplayName"></span>
+                <span class="role-badge" id="adminRoleBadge"></span>
+                <button class="btn btn-secondary btn-small" onclick="logout()">退出</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <h1 class="page-title">管理后台</h1>
+
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="icon">👥</div>
+                    <div class="value" id="adminUserCount">0</div>
+                    <div class="label">用户总数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="icon">🎁</div>
+                    <div class="value" id="adminProductCount">0</div>
+                    <div class="label">商品总数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="icon">📋</div>
+                    <div class="value" id="adminExchangeCount">0</div>
+                    <div class="label">兑换记录</div>
+                </div>
+                <div class="stats-card">
+                    <div class="icon">🔧</div>
+                    <div class="value" id="maintenanceStatus">正常</div>
+                    <div class="label">系统状态</div>
+                </div>
+            </div>
+
+            <div class="admin-grid" id="adminMenu">
+                <!-- 管理菜单 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 签到管理页面 -->
+    <div id="signManagePage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">📅 签到管理</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">签到管理</h1>
+
+            <div class="card">
+                <h3 class="card-title">📊 设置签到天数与积分</h3>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>签到天数</label>
+                        <input type="number" id="signDaysInput" placeholder="天数" min="1" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>获得积分</label>
+                        <input type="number" id="signPointsInput" placeholder="积分" min="1" value="10">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addSignRule()">添加规则</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 当前签到规则</h3>
+                <div id="signRulesList">
+                    <!-- 签到规则列表 -->
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">👤 修改用户签到记录</h3>
+                <div class="input-group">
+                    <label>选择用户</label>
+                    <select id="selectUserForSignEdit">
+                        <option value="">-- 选择用户 --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>修改签到天数</label>
+                    <input type="number" id="editUserSignDays" placeholder="输入天数" min="0">
+                </div>
+                <button class="btn btn-warning" onclick="updateUserSignDays()">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 惩罚扣分页面 -->
+    <div id="punishPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">⚖️ 惩罚扣分</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">惩罚扣分</h1>
+
+            <div class="card">
+                <h3 class="card-title">🔨 扣除用户积分</h3>
+                <div class="input-group">
+                    <label>选择用户</label>
+                    <select id="punishUserSelect">
+                        <option value="">-- 选择用户 --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>扣除积分数量</label>
+                    <input type="number" id="punishPointsInput" placeholder="输入积分" min="1">
+                </div>
+                <div class="input-group">
+                    <label>扣除原因</label>
+                    <textarea id="punishReasonInput" placeholder="输入原因" rows="3"></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="punishUser()">确认扣除</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 扣除记录</h3>
+                <div id="punishRecordsList">
+                    <!-- 扣除记录 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 获奖加分页面 -->
+    <div id="awardPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">🎉 获奖加分</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">获奖加分</h1>
+
+            <div class="card">
+                <h3 class="card-title">🏆 增加用户积分</h3>
+                <div class="input-group">
+                    <label>选择用户</label>
+                    <select id="awardUserSelect">
+                        <option value="">-- 选择用户 --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>增加积分数量</label>
+                    <input type="number" id="awardPointsInput" placeholder="输入积分" min="1">
+                </div>
+                <div class="input-group">
+                    <label>奖励原因</label>
+                    <textarea id="awardReasonInput" placeholder="输入原因" rows="3"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="awardUser()">确认增加</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 奖励记录</h3>
+                <div id="awardRecordsList">
+                    <!-- 奖励记录 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户信息查询页面 -->
+    <div id="userManagePage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">👥 用户信息查询</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">用户信息查询</h1>
+
+            <div class="search-box">
+                <span class="icon">🔍</span>
+                <input type="text" id="userSearchInput" placeholder="搜索用户..." oninput="filterUsers()">
+            </div>
+
+            <div id="usersList">
+                <!-- 用户列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 积分商城管理页面 -->
+    <div id="mallManagePage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">🛒 积分商城管理</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">积分商城管理</h1>
+
+            <div class="card">
+                <h3 class="card-title">➕ 添加商品</h3>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>商品名称</label>
+                        <input type="text" id="productNameInput" placeholder="商品名称">
+                    </div>
+                    <div class="input-group">
+                        <label>所需积分</label>
+                        <input type="number" id="productPriceInput" placeholder="积分" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label>库存数量</label>
+                        <input type="number" id="productStockInput" placeholder="库存" min="0" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>商品类型</label>
+                        <select id="productTypeInput">
+                            <option value="virtual">🎮 虚拟商品</option>
+                            <option value="physical">📦 实物商品</option>
+                            <option value="cashout">💵 提现</option>
+                            <option value="service">🛠️ 代肝服务</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>商品图标</label>
+                    <select id="productIconInput">
+                        <option value="🎮">🎮 游戏点卡</option>
+                        <option value="💰">💰 现金红包</option>
+                        <option value="🎁">🎁 实物礼品</option>
+                        <option value="⚔️">⚔️ 代肝服务</option>
+                        <option value="🃏">🃏 游戏道具</option>
+                        <option value="👕">👕 周边商品</option>
+                        <option value="☕">☕ 饮品券</option>
+                        <option value="📱">📱 手机充值</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>商品描述</label>
+                    <textarea id="productDescInput" placeholder="商品描述" rows="2"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="addProduct()">添加商品</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 商品列表</h3>
+                <div id="manageProductList">
+                    <!-- 商品列表 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加用户信息页面 -->
+    <div id="addUserPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">➕ 添加用户信息</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">添加用户信息</h1>
+
+            <div class="card">
+                <h3 class="card-title">👤 添加白名单用户</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">
+                    只有添加到此处的用户才能签到获得积分
+                </p>
+                <div class="input-group">
+                    <label>用户名称</label>
+                    <input type="text" id="newUserNameInput" placeholder="输入用户名称">
+                </div>
+                <button class="btn btn-primary" onclick="addWhitelistUser()">添加到白名单</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 白名单用户</h3>
+                <div id="whitelistUsersList">
+                    <!-- 白名单列表 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 兑换商品与地址管理页面 -->
+    <div id="exchangeManagePage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">📦 兑换商品管理</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">兑换商品与地址管理</h1>
+
+            <div class="search-box">
+                <span class="icon">🔍</span>
+                <input type="text" id="exchangeSearchInput" placeholder="搜索兑换记录..." oninput="filterExchanges()">
+            </div>
+
+            <div id="exchangeRecordsList">
+                <!-- 兑换记录列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统维护页面 -->
+    <div id="maintenancePage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">🔧 系统维护</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">系统维护</h1>
+
+            <div class="card">
+                <h3 class="card-title">⚠️ 维护模式控制</h3>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <div>
+                        <h4 id="maintenanceStatusText">当前状态：正常运行</h4>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">开启维护后，所有用户将被强制退出</p>
+                    </div>
+                    <button id="maintenanceToggleBtn" class="btn btn-danger" onclick="toggleMaintenance()">
+                        开启维护
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">🎁 维护补偿设置</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">
+                    维护结束后自动发放补偿积分给所有用户
+                </p>
+                <div class="input-group">
+                    <label>补偿积分数量</label>
+                    <input type="number" id="compensationPointsInput" placeholder="输入补偿积分" min="0" value="0">
+                </div>
+                <button class="btn btn-warning" onclick="setCompensation()">保存补偿设置</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 维护记录</h3>
+                <div id="maintenanceRecordsList">
+                    <!-- 维护记录 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创作者代为签到页面 -->
+    <div id="creatorSignPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">✨ 代为签到</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">创作者代为签到</h1>
+
+            <div class="card">
+                <h3 class="card-title">⚡ 代为签到设置</h3>
+                <div class="input-group">
+                    <label>代签手续费比例 (%)</label>
+                    <input type="number" id="proxyFeeInput" placeholder="手续费百分比" min="0" max="100" value="10">
+                </div>
+                <div class="input-group">
+                    <label>选择用户</label>
+                    <select id="proxySignUserSelect">
+                        <option value="">-- 选择用户 --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>签到天数</label>
+                    <input type="number" id="proxySignDaysInput" placeholder="签到天数" min="1" value="1">
+                </div>
+                <button class="btn btn-primary" onclick="proxySign()">确认代签</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 代签记录</h3>
+                <div id="proxySignRecordsList">
+                    <!-- 代签记录 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加管理员页面 -->
+    <div id="addAdminPage" class="page">
+        <div class="navbar">
+            <div class="navbar-brand">👔 添加管理员</div>
+        </div>
+        <div class="container">
+            <button class="btn btn-secondary back-btn" onclick="showPage('adminPage')">← 返回</button>
+            <h1 class="page-title">添加管理员</h1>
+
+            <div class="card">
+                <h3 class="card-title">➕ 创建新管理员</h3>
+                <div class="input-group">
+                    <label>管理员账号</label>
+                    <input type="text" id="newAdminAccountInput" placeholder="设置账号">
+                </div>
+                <div class="input-group">
+                    <label>管理员密码</label>
+                    <input type="password" id="newAdminPasswordInput" placeholder="设置密码">
+                </div>
+                <div class="input-group">
+                    <label>管理员等级</label>
+                    <select id="newAdminLevelInput">
+                        <option value="high">🔴 高级管理员</option>
+                        <option value="medium">🟡 中级管理员</option>
+                        <option value="low">⚪ 低级管理员</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="addAdmin()">创建管理员</button>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 class="card-title">📋 管理员列表</h3>
+                <div id="adminList">
+                    <!-- 管理员列表 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 兑换流程弹窗 -->
+    <div id="exchangeModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="exchangeModalTitle">兑换商品</h2>
+                <button class="modal-close" onclick="closeModal('exchangeModal')">&times;</button>
+            </div>
+            <div id="exchangeModalContent">
+                <!-- 兑换表单 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal">
+            <div class="confirm-dialog">
+                <div class="icon" id="confirmIcon">⚠️</div>
+                <h3 id="confirmTitle">确认操作</h3>
+                <p id="confirmMessage">确定要执行此操作吗？</p>
+                <div class="confirm-actions">
+                    <button class="btn btn-secondary" onclick="closeModal('confirmModal')">取消</button>
+                    <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 维护模式弹窗 -->
+    <div id="maintenanceModal" class="modal-overlay">
+        <div class="modal">
+            <div class="maintenance-modal">
+                <div class="icon">🔧</div>
+                <h2>系统维护中</h2>
+                <p>系统正在维护，请稍后再试</p>
+                <button class="btn btn-primary" onclick="showTab('admin')" style="margin-bottom: 15px;">
+                    管理员登录
+                </button>
+                <button class="btn btn-secondary" onclick="logout()">返回</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 签到记录弹窗 -->
+    <div id="signHistoryModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>签到记录</h2>
+                <button class="modal-close" onclick="closeModal('signHistoryModal')">&times;</button>
+            </div>
+            <div id="signHistoryContent">
+                <!-- 签到日历 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 兑换记录弹窗 -->
+    <div id="exchangeRecordsModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>兑换记录</h2>
+                <button class="modal-close" onclick="closeModal('exchangeRecordsModal')">&times;</button>
+            </div>
+            <div id="exchangeRecordsContent">
+                <!-- 兑换记录列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 排行榜弹窗 -->
+    <div id="rankingModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>积分排行榜</h2>
+                <button class="modal-close" onclick="closeModal('rankingModal')">&times;</button>
+            </div>
+            <div id="rankingContent">
+                <!-- 排行榜 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 数据存储 ====================
+        const DB = {
+            get(key, defaultValue = null) {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            },
+            set(key, value) {
+                localStorage.setItem(key, JSON.stringify(value));
+            }
+        };
+
+        // 初始化数据
+        function initData() {
+            if (!DB.get('users')) DB.set('users', []);
+            if (!DB.get('signRules')) DB.set('signRules', [{days: 1, points: 10}]);
+            if (!DB.get('products')) DB.set('products', []);
+            if (!DB.get('whitelist')) DB.set('whitelist', []);
+            if (!DB.get('exchanges')) DB.set('exchanges', []);
+            if (!DB.get('admins')) DB.set('admins', []);
+            if (!DB.get('maintenance')) DB.set('maintenance', {on: false, compensation: 0});
+            if (!DB.get('punishRecords')) DB.set('punishRecords', []);
+            if (!DB.get('awardRecords')) DB.set('awardRecords', []);
+            if (!DB.get('proxyFee')) DB.set('proxyFee', 10);
+            if (!DB.get('proxySignRecords')) DB.set('proxySignRecords', []);
+            if (!DB.get('maintenanceRecords')) DB.set('maintenanceRecords', []);
+            
+            // 创建者账号
+            if (!DB.get('admins').find(a => a.account === 'niezhu')) {
+                const admins = DB.get('admins');
+                admins.push({
+                    account: 'niezhu',
+                    password: 'niezhuQQ',
+                    role: 'creator',
+                    level: 'creator',
+                    createdBy: 'system'
+                });
+                DB.set('admins', admins);
+            }
+        }
+
+        // ==================== 状态管理 ====================
+        let currentUser = null;
+        let currentAdmin = null;
+
+        // ==================== 工具函数 ====================
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            
+            // 刷新页面数据
+            switch(pageId) {
+                case 'adminPage':
+                    refreshAdminPage();
+                    break;
+                case 'userPage':
+                    refreshUserPage();
+                    break;
+                case 'mallPage':
+                    refreshMallPage();
+                    break;
+                case 'signManagePage':
+                    refreshSignManagePage();
+                    break;
+                case 'punishPage':
+                    refreshPunishPage();
+                    break;
+                case 'awardPage':
+                    refreshAwardPage();
+                    break;
+                case 'userManagePage':
+                    refreshUserManagePage();
+                    break;
+                case 'mallManagePage':
+                    refreshMallManagePage();
+                    break;
+                case 'addUserPage':
+                    refreshAddUserPage();
+                    break;
+                case 'exchangeManagePage':
+                    refreshExchangeManagePage();
+                    break;
+                case 'maintenancePage':
+                    refreshMaintenancePage();
+                    break;
+                case 'creatorSignPage':
+                    refreshCreatorSignPage();
+                    break;
+                case 'addAdminPage':
+                    refreshAddAdminPage();
+                    break;
+            }
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.login-tab[data-tab="${tab}"]`).classList.add('active');
+            
+            document.getElementById('userLoginForm').style.display = tab === 'user' ? 'block' : 'none';
+            document.getElementById('adminLoginForm').style.display = tab === 'admin' ? 'block' : 'none';
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ==================== 登录功能 ====================
+        function loginAsUser() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if (!name) {
+                showToast('请输入名称', 'error');
+                return;
+            }
+
+            // 检查维护状态
+            const maintenance = DB.get('maintenance');
+            if (maintenance.on) {
+                openModal('maintenanceModal');
+                return;
+            }
+
+            // 检查是否在白名单中
+            const whitelist = DB.get('whitelist');
+            if (whitelist.length > 0 && !whitelist.includes(name)) {
+                showToast('你并非群内人员无法签到', 'error');
+                return;
+            }
+
+            // 登录或创建用户
+            let users = DB.get('users');
+            let user = users.find(u => u.name === name);
+            
+            if (!user) {
+                user = {
+                    name: name,
+                    points: 0,
+                    signDays: 0,
+                    lastSignDate: null,
+                    signHistory: [],
+                    exchangeHistory: [],
+                    createdAt: new Date().toISOString()
+                };
+                users.push(user);
+                DB.set('users', users);
+            }
+
+            currentUser = user;
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            
+            document.getElementById('userNameInput').value = '';
+            showPage('userPage');
+            refreshUserPage();
+            showToast(`欢迎回来，${name}！`);
+        }
+
+        function loginAsAdmin() {
+            const account = document.getElementById('adminAccountInput').value.trim();
+            const password = document.getElementById('adminPasswordInput').value;
+            const remember = document.getElementById('rememberAdminCheck').checked;
+
+            if (!account || !password) {
+                showToast('请输入账号和密码', 'error');
+                return;
+            }
+
+            // 检查维护状态
+            const maintenance = DB.get('maintenance');
+            if (maintenance.on) {
+                openModal('maintenanceModal');
+                return;
+            }
+
+            const admins = DB.get('admins');
+            const admin = admins.find(a => a.account === account && a.password === password);
+
+            if (!admin) {
+                showToast('账号或密码错误', 'error');
+                return;
+            }
+
+            // 记住密码功能
+            if (remember) {
+                localStorage.setItem('rememberedAdminAccount', account);
+                localStorage.setItem('rememberedAdminPassword', password);
+            } else {
+                localStorage.removeItem('rememberedAdminAccount');
+                localStorage.removeItem('rememberedAdminPassword');
+            }
+
+            currentAdmin = admin;
+            sessionStorage.setItem('currentAdmin', JSON.stringify(admin));
+
+            document.getElementById('adminAccountInput').value = '';
+            document.getElementById('adminPasswordInput').value = '';
+            document.getElementById('rememberAdminCheck').checked = false;
+            showPage('adminPage');
+            refreshAdminPage();
+            showToast(`欢迎，${getRoleName(admin.role)}！`);
+        }
+
+        function logout() {
+            currentUser = null;
+            currentAdmin = null;
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentAdmin');
+            closeModal('maintenanceModal');
+            showPage('loginPage');
+            showToast('已退出登录');
+        }
+
+        function getRoleName(role) {
+            const names = {
+                'creator': '创作者',
+                'high': '高级管理员',
+                'medium': '中级管理员',
+                'low': '低级管理员'
+            };
+            return names[role] || '未知';
+        }
+
+        // ==================== 用户页面 ====================
+        function refreshUserPage() {
+            if (!currentUser) return;
+
+            document.getElementById('currentUserName').textContent = currentUser.name;
+            document.getElementById('welcomeUserName').textContent = currentUser.name + ' 的主页';
+            document.getElementById('currentPoints').textContent = currentUser.points;
+            document.getElementById('totalSignDays').textContent = currentUser.signDays;
+            document.getElementById('totalExchanges').textContent = currentUser.exchangeHistory.length;
+
+            // 检查今日是否已签到
+            const today = new Date().toDateString();
+            const signBtn = document.getElementById('signButton');
+            if (currentUser.lastSignDate === today) {
+                signBtn.textContent = '✅ 今日已签到';
+                signBtn.classList.add('signed');
+                signBtn.disabled = true;
+            } else {
+                signBtn.textContent = '📅 立即签到';
+                signBtn.classList.remove('signed');
+                signBtn.disabled = false;
+            }
+        }
+
+        function doSign() {
+            if (!currentUser) return;
+
+            // 检查是否在白名单中
+            const whitelist = DB.get('whitelist');
+            if (whitelist.length > 0 && !whitelist.includes(currentUser.name)) {
+                showToast('你并非群内人员无法签到', 'error');
+                return;
+            }
+
+            const today = new Date().toDateString();
+            if (currentUser.lastSignDate === today) {
+                showToast('今日已签到', 'warning');
+                return;
+            }
+
+            const rules = DB.get('signRules');
+            const points = rules.length > 0 ? rules[rules.length - 1].points : 10;
+
+            currentUser.points += points;
+            currentUser.signDays += 1;
+            currentUser.lastSignDate = today;
+            currentUser.signHistory.push({
+                date: today,
+                points: points
+            });
+
+            // 更新用户数据
+            let users = DB.get('users');
+            const index = users.findIndex(u => u.name === currentUser.name);
+            if (index !== -1) {
+                users[index] = currentUser;
+                DB.set('users', users);
+            }
+
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            refreshUserPage();
+            showToast(`签到成功！获得 ${points} 积分`);
+        }
+
+        // ==================== 商城页面 ====================
+        function refreshMallPage() {
+            if (!currentUser) return;
+
+            document.getElementById('mallUserName').textContent = currentUser.name;
+            document.getElementById('mallMyPoints').textContent = currentUser.points;
+
+            const products = DB.get('products');
+            document.getElementById('mallProductCount').textContent = products.length;
+
+            renderProductList(products);
+        }
+
+        function renderProductList(products) {
+            const container = document.getElementById('productList');
+            
+            if (products.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🎁</div>
+                        <p>暂无商品</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-image">${p.icon || '🎁'}</div>
+                    <div class="product-info">
+                        <h3>${p.name}</h3>
+                        <div class="price">${p.price} 积分</div>
+                        <div class="stock">库存: ${p.stock}</div>
+                        <button class="btn btn-primary btn-small" 
+                                onclick="startExchange('${p.id}')"
+                                ${p.stock <= 0 ? 'disabled' : ''}>
+                            ${p.stock <= 0 ? '已售罄' : '立即兑换'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterProducts() {
+            const search = document.getElementById('mallSearchInput').value.toLowerCase();
+            const products = DB.get('products').filter(p => 
+                p.name.toLowerCase().includes(search)
+            );
+            renderProductList(products);
+        }
+
+        function startExchange(productId) {
+            if (!currentUser) return;
+
+            const products = DB.get('products');
+            const product = products.find(p => p.id === productId);
+
+            if (!product) {
+                showToast('商品不存在', 'error');
+                return;
+            }
+
+            if (product.stock <= 0) {
+                showToast('商品已售罄', 'error');
+                return;
+            }
+
+            if (currentUser.points < product.price) {
+                showToast('积分不足', 'error');
+                return;
+            }
+
+            // 根据商品类型显示不同的表单
+            let formHtml = '';
+            
+            if (product.type === 'virtual') {
+                formHtml = `
+                    <p style="margin-bottom: 20px;">商品：${product.name} | 价格：${product.price} 积分</p>
+                    <div class="input-group">
+                        <label>游戏账号</label>
+                        <input type="text" id="exchangeGameId" placeholder="请输入游戏账号">
+                    </div>
+                    <div class="input-group">
+                        <label>游戏密码</label>
+                        <input type="password" id="exchangeGamePassword" placeholder="请输入游戏密码">
+                    </div>
+                    <button class="btn btn-success" onclick="completeExchange('${productId}', 'virtual')">确认兑换</button>
+                `;
+            } else if (product.type === 'physical') {
+                formHtml = `
+                    <p style="margin-bottom: 20px;">商品：${product.name} | 价格：${product.price} 积分</p>
+                    <div class="input-group">
+                        <label>手机号</label>
+                        <input type="tel" id="exchangePhone" placeholder="请输入手机号">
+                    </div>
+                    <div class="input-group">
+                        <label>收货地址</label>
+                        <textarea id="exchangeAddress" placeholder="请输入详细收货地址" rows="3"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="completeExchange('${productId}', 'physical')">确认兑换</button>
+                `;
+            } else if (product.type === 'cashout') {
+                formHtml = `
+                    <p style="margin-bottom: 20px;">商品：${product.name} | 价格：${product.price} 积分</p>
+                    <div class="input-group">
+                        <label>上传收款二维码</label>
+                        <div class="qr-upload" onclick="document.getElementById('qrFileInput').click()">
+                            <div class="icon">📷</div>
+                            <p>点击上传图片</p>
+                            <img id="qrPreview" class="qr-preview" style="display: none;">
+                        </div>
+                        <input type="file" id="qrFileInput" accept="image/*" style="display: none;" onchange="previewQR(this)">
+                    </div>
+                    <button class="btn btn-success" onclick="completeExchange('${productId}', 'cashout')">确认兑换</button>
+                `;
+            } else if (product.type === 'service') {
+                formHtml = `
+                    <p style="margin-bottom: 20px;">商品：${product.name} | 价格：${product.price} 积分</p>
+                    <div class="input-group">
+                        <label>代肝内容</label>
+                        <textarea id="exchangeServiceContent" placeholder="请详细说明代肝需求，如：任务活动、每日委托、地图资源等，请详细说明需要哪一张地图" rows="5"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="completeExchange('${productId}', 'service')">确认兑换</button>
+                `;
+            }
+
+            document.getElementById('exchangeModalTitle').textContent = '兑换 ' + product.name;
+            document.getElementById('exchangeModalContent').innerHTML = formHtml;
+            openModal('exchangeModal');
+        }
+
+        function previewQR(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('qrPreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function completeExchange(productId, type) {
+            if (!currentUser) return;
+
+            const products = DB.get('products');
+            const product = products.find(p => p.id === productId);
+
+            if (!product || product.stock <= 0) {
+                showToast('商品已售罄', 'error');
+                return;
+            }
+
+            if (currentUser.points < product.price) {
+                showToast('积分不足', 'error');
+                return;
+            }
+
+            // 获取表单数据
+            let exchangeData = { type: type };
+
+            if (type === 'virtual') {
+                exchangeData.gameId = document.getElementById('exchangeGameId')?.value;
+                exchangeData.gamePassword = document.getElementById('exchangeGamePassword')?.value;
+                if (!exchangeData.gameId || !exchangeData.gamePassword) {
+                    showToast('请填写完整信息', 'error');
+                    return;
+                }
+            } else if (type === 'physical') {
+                exchangeData.phone = document.getElementById('exchangePhone')?.value;
+                exchangeData.address = document.getElementById('exchangeAddress')?.value;
+                if (!exchangeData.phone || !exchangeData.address) {
+                    showToast('请填写完整信息', 'error');
+                    return;
+                }
+            } else if (type === 'cashout') {
+                const qrPreview = document.getElementById('qrPreview');
+                exchangeData.qrImage = qrPreview?.src || '';
+            } else if (type === 'service') {
+                exchangeData.serviceContent = document.getElementById('exchangeServiceContent')?.value;
+                if (!exchangeData.serviceContent) {
+                    showToast('请填写代肝内容', 'error');
+                    return;
+                }
+            }
+
+            // 扣除积分
+            currentUser.points -= product.price;
+            product.stock -= 1;
+
+            // 创建兑换记录
+            const exchange = {
+                id: Date.now().toString(),
+                userName: currentUser.name,
+                productId: product.id,
+                productName: product.name,
+                productType: product.type,
+                points: product.price,
+                data: exchangeData,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            let exchanges = DB.get('exchanges');
+            exchanges.push(exchange);
+            DB.set('exchanges', exchanges);
+
+            // 更新用户
+            currentUser.exchangeHistory.push(exchange);
+            let users = DB.get('users');
+            const userIndex = users.findIndex(u => u.name === currentUser.name);
+            if (userIndex !== -1) {
+                users[userIndex] = currentUser;
+                DB.set('users', users);
+            }
+
+            // 更新商品
+            const productIndex = products.findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                products[productIndex] = product;
+                DB.set('products', products);
+            }
+
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            closeModal('exchangeModal');
+            refreshMallPage();
+            showToast('兑换成功！');
+        }
+
+        function showExchangeRecords() {
+            if (!currentUser) return;
+
+            const records = currentUser.exchangeHistory || [];
+            
+            if (records.length === 0) {
+                document.getElementById('exchangeRecordsContent').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>暂无兑换记录</p>
+                    </div>
+                `;
+            } else {
+                document.getElementById('exchangeRecordsContent').innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>商品</th>
+                                    <th>积分</th>
+                                    <th>状态</th>
+                                    <th>时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${records.reverse().map(r => `
+                                    <tr>
+                                        <td>${r.productName}</td>
+                                        <td>${r.points}</td>
+                                        <td><span class="role-badge ${r.status === 'completed' ? 'role-high' : 'role-medium'}">${r.status === 'completed' ? '已完成' : '处理中'}</span></td>
+                                        <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            openModal('exchangeRecordsModal');
+        }
+
+        function showSignHistory() {
+            if (!currentUser) return;
+
+            const history = currentUser.signHistory || [];
+            const today = new Date();
+            let calendarHtml = '<div class="calendar-grid">';
+
+            // 生成最近30天的日历
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toDateString();
+                const signed = history.some(h => h.date === dateStr);
+                const isToday = date.toDateString() === today.toDateString();
+
+                calendarHtml += `
+                    <div class="calendar-day ${signed ? 'signed' : ''} ${isToday ? 'today' : ''}">
+                        <span class="day-num">${date.getDate()}</span>
+                        <span class="day-points">${signed ? '✓' : ''}</span>
+                    </div>
+                `;
+            }
+
+            calendarHtml += '</div>';
+            document.getElementById('signHistoryContent').innerHTML = calendarHtml;
+            openModal('signHistoryModal');
+        }
+
+        function showRanking() {
+            const users = DB.get('users');
+            const sorted = [...users].sort((a, b) => b.points - a.points).slice(0, 10);
+
+            if (sorted.length === 0) {
+                document.getElementById('rankingContent').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🏆</div>
+                        <p>暂无排名数据</p>
+                    </div>
+                `;
+            } else {
+                document.getElementById('rankingContent').innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>用户</th>
+                                    <th>积分</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sorted.map((u, i) => `
+                                    <tr>
+                                        <td>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</td>
+                                        <td>${u.name}${u.name === currentUser?.name ? ' (你)' : ''}</td>
+                                        <td>${u.points}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            openModal('rankingModal');
+        }
+
+        // ==================== 管理后台 ====================
+        function checkPermission(requiredLevel) {
+            if (!currentAdmin) return false;
+
+            const levels = ['low', 'medium', 'high', 'creator'];
+            const adminLevel = currentAdmin.level;
+            const adminIndex = levels.indexOf(adminLevel);
+            const requiredIndex = levels.indexOf(requiredLevel);
+
+            return adminIndex >= requiredIndex;
+        }
+
+        function refreshAdminPage() {
+            if (!currentAdmin) return;
+
+            document.getElementById('adminDisplayName').textContent = currentAdmin.account;
+            
+            const roleBadge = document.getElementById('adminRoleBadge');
+            roleBadge.textContent = getRoleName(currentAdmin.role);
+            roleBadge.className = `role-badge role-${currentAdmin.level}`;
+
+            // 统计数据
+            document.getElementById('adminUserCount').textContent = DB.get('users').length;
+            document.getElementById('adminProductCount').textContent = DB.get('products').length;
+            document.getElementById('adminExchangeCount').textContent = DB.get('exchanges').length;
+            
+            const maintenance = DB.get('maintenance');
+            document.getElementById('maintenanceStatus').textContent = maintenance.on ? '维护中' : '正常';
+            document.getElementById('maintenanceStatus').style.color = maintenance.on ? '#ff6b6b' : '#00d4ff';
+
+            // 渲染菜单
+            renderAdminMenu();
+        }
+
+        function renderAdminMenu() {
+            const isCreator = currentAdmin.level === 'creator';
+            const canHigh = checkPermission('high');
+            const canMedium = checkPermission('medium');
+
+            const menuItems = [
+                { id: 'signManagePage', icon: '📅', name: '签到管理', desc: '设置签到规则与积分', levels: ['low', 'medium', 'high', 'creator'] },
+                { id: 'punishPage', icon: '⚖️', name: '惩罚扣分', desc: '扣除用户积分', levels: ['medium', 'high', 'creator'] },
+                { id: 'awardPage', icon: '🎉', name: '获奖加分', desc: '增加用户积分', levels: ['medium', 'high', 'creator'] },
+                { id: 'userManagePage', icon: '👥', name: '用户信息查询', desc: '查看/删除用户', levels: ['low', 'medium', 'high', 'creator'] },
+                { id: 'mallManagePage', icon: '🛒', name: '积分商城', desc: '添加/删除商品', levels: ['medium', 'high', 'creator'] },
+                { id: 'addUserPage', icon: '➕', name: '添加用户信息', desc: '添加白名单用户', levels: ['medium', 'high', 'creator'] },
+                { id: 'exchangeManagePage', icon: '📦', name: '兑换商品管理', desc: '处理兑换申请', levels: ['medium', 'high', 'creator'] },
+                { id: 'creatorSignPage', icon: '✨', name: '代为签到', desc: '创作者代签服务', levels: ['creator'] },
+                { id: 'maintenancePage', icon: '🔧', name: '系统维护', desc: '维护模式控制', levels: ['creator'] },
+                { id: 'addAdminPage', icon: '👔', name: '添加管理员', desc: '创建管理员账号', levels: ['creator'] }
+            ];
+
+            const visibleItems = menuItems.filter(item => 
+                item.levels.includes(currentAdmin.level)
+            );
+
+            document.getElementById('adminMenu').innerHTML = visibleItems.map(item => `
+                <div class="admin-card" onclick="showPage('${item.id}')">
+                    <div class="icon">${item.icon}</div>
+                    <h3>${item.name}</h3>
+                    <p>${item.desc}</p>
+                </div>
+            `).join('');
+        }
+
+        // ==================== 签到管理 ====================
+        function refreshSignManagePage() {
+            if (!checkPermission('low')) {
+                showPermissionDenied('signManagePage');
+                return;
+            }
+
+            const rules = DB.get('signRules');
+            const users = DB.get('users');
+
+            document.getElementById('signRulesList').innerHTML = rules.length === 0 ? 
+                '<p style="color: var(--text-muted);">暂无签到规则</p>' :
+                rules.map((r, i) => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>第 ${r.days} 天</h4>
+                            <p>获得 ${r.points} 积分</p>
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn btn-small btn-warning" onclick="editSignRule(${i})">修改</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteSignRule(${i})">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            // 填充用户选择
+            const select = document.getElementById('selectUserForSignEdit');
+            select.innerHTML = '<option value="">-- 选择用户 --</option>' +
+                users.map(u => `<option value="${u.name}">${u.name} (${u.signDays}天)</option>`).join('');
+        }
+
+        function addSignRule() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const days = parseInt(document.getElementById('signDaysInput').value);
+            const points = parseInt(document.getElementById('signPointsInput').value);
+
+            if (!days || !points || days < 1 || points < 1) {
+                showToast('请输入有效的天数和积分', 'error');
+                return;
+            }
+
+            const rules = DB.get('signRules');
+            rules.push({ days, points });
+            rules.sort((a, b) => a.days - b.days);
+            DB.set('signRules', rules);
+
+            document.getElementById('signDaysInput').value = '1';
+            document.getElementById('signPointsInput').value = '10';
+
+            refreshSignManagePage();
+            showToast('规则添加成功');
+        }
+
+        function editSignRule(index) {
+            const rules = DB.get('signRules');
+            const rule = rules[index];
+            
+            const newDays = prompt('修改签到天数:', rule.days);
+            const newPoints = prompt('修改获得积分:', rule.points);
+
+            if (newDays !== null && newPoints !== null) {
+                rules[index] = { days: parseInt(newDays), points: parseInt(newPoints) };
+                DB.set('signRules', rules);
+                refreshSignManagePage();
+                showToast('规则已修改');
+            }
+        }
+
+        function deleteSignRule(index) {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            showConfirm('⚠️', '确认删除', '确定要删除此签到规则吗？', () => {
+                const rules = DB.get('signRules');
+                rules.splice(index, 1);
+                DB.set('signRules', rules);
+                refreshSignManagePage();
+                showToast('规则已删除');
+            });
+        }
+
+        function updateUserSignDays() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const userName = document.getElementById('selectUserForSignEdit').value;
+            const newDays = parseInt(document.getElementById('editUserSignDays').value);
+
+            if (!userName || !newDays || newDays < 0) {
+                showToast('请选择用户并输入有效天数', 'error');
+                return;
+            }
+
+            let users = DB.get('users');
+            const userIndex = users.findIndex(u => u.name === userName);
+            
+            if (userIndex !== -1) {
+                const oldDays = users[userIndex].signDays;
+                users[userIndex].signDays = newDays;
+                DB.set('users', users);
+
+                // 更新当前用户
+                if (currentUser && currentUser.name === userName) {
+                    currentUser.signDays = newDays;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                }
+
+                refreshSignManagePage();
+                showToast(`已将 ${userName} 的签到天数从 ${oldDays} 修改为 ${newDays}`);
+            }
+        }
+
+        // ==================== 惩罚扣分 ====================
+        function refreshPunishPage() {
+            if (!checkPermission('medium')) {
+                showPermissionDenied('punishPage');
+                return;
+            }
+
+            const users = DB.get('users');
+            const punishRecords = DB.get('punishRecords');
+
+            document.getElementById('punishUserSelect').innerHTML = '<option value="">-- 选择用户 --</option>' +
+                users.map(u => `<option value="${u.name}">${u.name} (${u.points}积分)</option>`).join('');
+
+            document.getElementById('punishRecordsList').innerHTML = punishRecords.length === 0 ?
+                '<p style="color: var(--text-muted);">暂无扣除记录</p>' :
+                punishRecords.reverse().map(r => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>${r.userName}</h4>
+                            <p>扣除 ${r.points} 积分 | 原因: ${r.reason}</p>
+                        </div>
+                        <div>${new Date(r.createdAt).toLocaleDateString()}</div>
+                    </div>
+                `).join('');
+        }
+
+        function punishUser() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const userName = document.getElementById('punishUserSelect').value;
+            const points = parseInt(document.getElementById('punishPointsInput').value);
+            const reason = document.getElementById('punishReasonInput').value || '未说明';
+
+            if (!userName || !points || points < 1) {
+                showToast('请选择用户并输入有效积分', 'error');
+                return;
+            }
+
+            let users = DB.get('users');
+            const userIndex = users.findIndex(u => u.name === userName);
+
+            if (userIndex !== -1) {
+                users[userIndex].points = Math.max(0, users[userIndex].points - points);
+                DB.set('users', users);
+
+                // 更新当前用户
+                if (currentUser && currentUser.name === userName) {
+                    currentUser.points = users[userIndex].points;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                }
+
+                // 记录
+                const records = DB.get('punishRecords');
+                records.push({
+                    userName,
+                    points,
+                    reason,
+                    createdAt: new Date().toISOString()
+                });
+                DB.set('punishRecords', records);
+
+                document.getElementById('punishPointsInput').value = '';
+                document.getElementById('punishReasonInput').value = '';
+
+                refreshPunishPage();
+                showToast(`已扣除 ${userName} ${points} 积分`);
+            }
+        }
+
+        // ==================== 获奖加分 ====================
+        function refreshAwardPage() {
+            if (!checkPermission('medium')) {
+                showPermissionDenied('awardPage');
+                return;
+            }
+
+            const users = DB.get('users');
+            const awardRecords = DB.get('awardRecords');
+
+            document.getElementById('awardUserSelect').innerHTML = '<option value="">-- 选择用户 --</option>' +
+                users.map(u => `<option value="${u.name}">${u.name} (${u.points}积分)</option>`).join('');
+
+            document.getElementById('awardRecordsList').innerHTML = awardRecords.length === 0 ?
+                '<p style="color: var(--text-muted);">暂无奖励记录</p>' :
+                awardRecords.reverse().map(r => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>${r.userName}</h4>
+                            <p>奖励 ${r.points} 积分 | 原因: ${r.reason}</p>
+                        </div>
+                        <div>${new Date(r.createdAt).toLocaleDateString()}</div>
+                    </div>
+                `).join('');
+        }
+
+        function awardUser() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const userName = document.getElementById('awardUserSelect').value;
+            const points = parseInt(document.getElementById('awardPointsInput').value);
+            const reason = document.getElementById('awardReasonInput').value || '未说明';
+
+            if (!userName || !points || points < 1) {
+                showToast('请选择用户并输入有效积分', 'error');
+                return;
+            }
+
+            let users = DB.get('users');
+            const userIndex = users.findIndex(u => u.name === userName);
+
+            if (userIndex !== -1) {
+                users[userIndex].points += points;
+                DB.set('users', users);
+
+                // 更新当前用户
+                if (currentUser && currentUser.name === userName) {
+                    currentUser.points = users[userIndex].points;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                }
+
+                // 记录
+                const records = DB.get('awardRecords');
+                records.push({
+                    userName,
+                    points,
+                    reason,
+                    createdAt: new Date().toISOString()
+                });
+                DB.set('awardRecords', records);
+
+                document.getElementById('awardPointsInput').value = '';
+                document.getElementById('awardReasonInput').value = '';
+
+                refreshAwardPage();
+                showToast(`已奖励 ${userName} ${points} 积分`);
+            }
+        }
+
+        // ==================== 用户信息查询 ====================
+        function refreshUserManagePage() {
+            if (!checkPermission('low')) {
+                showPermissionDenied('userManagePage');
+                return;
+            }
+
+            const users = DB.get('users');
+            
+            if (users.length === 0) {
+                document.getElementById('usersList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">👥</div>
+                        <p>暂无用户</p>
+                    </div>
+                `;
+                return;
+            }
+
+            renderUsersList(users);
+        }
+
+        function renderUsersList(users) {
+            document.getElementById('usersList').innerHTML = users.map(u => `
+                <div class="card" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="color: var(--primary);">${u.name}</h3>
+                            <p style="color: var(--text-muted);">积分: ${u.points} | 签到: ${u.signDays}天</p>
+                            <p style="color: var(--text-muted); font-size: 0.85rem;">注册时间: ${new Date(u.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="deleteUser('${u.name}')">删除用户</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterUsers() {
+            const search = document.getElementById('userSearchInput').value.toLowerCase();
+            const users = DB.get('users').filter(u => 
+                u.name.toLowerCase().includes(search)
+            );
+            renderUsersList(users);
+        }
+
+        function deleteUser(userName) {
+            showConfirm('⚠️', '确认删除', `确定要删除用户 "${userName}" 吗？删除后该用户将返回登录界面。`, () => {
+                let users = DB.get('users');
+                users = users.filter(u => u.name !== userName);
+                DB.set('users', users);
+
+                // 如果删除的是当前用户，强制退出
+                if (currentUser && currentUser.name === userName) {
+                    logout();
+                }
+
+                refreshUserManagePage();
+                showToast('用户已删除');
+            });
+        }
+
+        // ==================== 积分商城管理 ====================
+        function refreshMallManagePage() {
+            if (!checkPermission('medium')) {
+                showPermissionDenied('mallManagePage');
+                return;
+            }
+
+            const products = DB.get('products');
+            
+            if (products.length === 0) {
+                document.getElementById('manageProductList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🛒</div>
+                        <p>暂无商品</p>
+                    </div>
+                `;
+                return;
+            }
+
+            document.getElementById('manageProductList').innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-image">${p.icon || '🎁'}</div>
+                    <div class="product-info">
+                        <h3>${p.name}</h3>
+                        <div class="price">${p.price} 积分</div>
+                        <div class="stock">库存: ${p.stock}</div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn btn-small btn-warning" onclick="editProduct('${p.id}')">修改库存</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteProduct('${p.id}')">删除</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addProduct() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const name = document.getElementById('productNameInput').value.trim();
+            const price = parseInt(document.getElementById('productPriceInput').value);
+            const stock = parseInt(document.getElementById('productStockInput').value);
+            const type = document.getElementById('productTypeInput').value;
+            const icon = document.getElementById('productIconInput').value;
+            const desc = document.getElementById('productDescInput').value;
+
+            if (!name || !price || !stock) {
+                showToast('请填写完整的商品信息', 'error');
+                return;
+            }
+
+            const products = DB.get('products');
+            products.push({
+                id: Date.now().toString(),
+                name,
+                price,
+                stock,
+                type,
+                icon,
+                desc,
+                createdAt: new Date().toISOString()
+            });
+            DB.set('products', products);
+
+            // 清空表单
+            document.getElementById('productNameInput').value = '';
+            document.getElementById('productPriceInput').value = '';
+            document.getElementById('productStockInput').value = '1';
+            document.getElementById('productDescInput').value = '';
+
+            refreshMallManagePage();
+            showToast('商品添加成功');
+        }
+
+        function editProduct(productId) {
+            const products = DB.get('products');
+            const product = products.find(p => p.id === productId);
+            
+            if (!product) {
+                showToast('商品不存在', 'error');
+                return;
+            }
+
+            const newStock = prompt('修改库存数量:', product.stock);
+            if (newStock !== null) {
+                product.stock = parseInt(newStock);
+                DB.set('products', products);
+                refreshMallManagePage();
+                showToast('库存已修改');
+            }
+        }
+
+        function deleteProduct(productId) {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            // 先检查商品是否还存在
+            const products = DB.get('products');
+            const productExists = products.some(p => p.id === productId);
+            
+            if (!productExists) {
+                showToast('商品已不存在', 'error');
+                refreshMallManagePage();
+                return;
+            }
+
+            // 存储待删除的商品ID
+            window.pendingDeleteProductId = productId;
+
+            // 显示确认弹窗
+            document.getElementById('confirmIcon').textContent = '⚠️';
+            document.getElementById('confirmTitle').textContent = '确认删除';
+            document.getElementById('confirmMessage').textContent = '确定要删除此商品吗？删除后无法恢复！';
+            
+            // 直接设置确认按钮的点击事件
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.onclick = function() {
+                const pid = window.pendingDeleteProductId;
+                if (pid) {
+                    let prods = DB.get('products');
+                    prods = prods.filter(p => p.id !== pid);
+                    DB.set('products', prods);
+                    window.pendingDeleteProductId = null;
+                    closeModal('confirmModal');
+                    refreshMallManagePage();
+                    // 同时刷新商城页面（如果用户在前台的话）
+                    refreshMallPage();
+                    showToast('商品已删除');
+                }
+            };
+            
+            openModal('confirmModal');
+        }
+
+        // ==================== 添加用户信息 ====================
+        function refreshAddUserPage() {
+            if (!checkPermission('medium')) {
+                showPermissionDenied('addUserPage');
+                return;
+            }
+
+            const whitelist = DB.get('whitelist');
+            
+            if (whitelist.length === 0) {
+                document.getElementById('whitelistUsersList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📝</div>
+                        <p>白名单为空，所有登录用户都可以签到</p>
+                    </div>
+                `;
+                return;
+            }
+
+            document.getElementById('whitelistUsersList').innerHTML = whitelist.map((name, i) => `
+                <div class="list-item">
+                    <div class="list-item-info">
+                        <h4>${name}</h4>
+                    </div>
+                    <button class="btn btn-small btn-danger" onclick="removeWhitelistUser('${name}')">移除</button>
+                </div>
+            `).join('');
+        }
+
+        function addWhitelistUser() {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const name = document.getElementById('newUserNameInput').value.trim();
+            
+            if (!name) {
+                showToast('请输入用户名称', 'error');
+                return;
+            }
+
+            const whitelist = DB.get('whitelist');
+            if (whitelist.includes(name)) {
+                showToast('该用户已在白名单中', 'warning');
+                return;
+            }
+
+            whitelist.push(name);
+            DB.set('whitelist', whitelist);
+            document.getElementById('newUserNameInput').value = '';
+
+            refreshAddUserPage();
+            showToast(`已将 ${name} 添加到白名单`);
+        }
+
+        function removeWhitelistUser(name) {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            showConfirm('⚠️', '确认移除', `确定要将 ${name} 从白名单中移除吗？移除后该用户将无法签到。`, () => {
+                let whitelist = DB.get('whitelist');
+                whitelist = whitelist.filter(n => n !== name);
+                DB.set('whitelist', whitelist);
+                refreshAddUserPage();
+                showToast(`${name} 已从白名单移除`);
+            });
+        }
+
+        // ==================== 兑换商品管理 ====================
+        function refreshExchangeManagePage() {
+            if (!checkPermission('medium')) {
+                showPermissionDenied('exchangeManagePage');
+                return;
+            }
+
+            const exchanges = DB.get('exchanges');
+            
+            if (exchanges.length === 0) {
+                document.getElementById('exchangeRecordsList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📦</div>
+                        <p>暂无兑换记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            renderExchangeRecords(exchanges);
+        }
+
+        function renderExchangeRecords(exchanges) {
+            document.getElementById('exchangeRecordsList').innerHTML = exchanges.reverse().map(e => {
+                let dataHtml = '';
+                if (e.data.type === 'virtual') {
+                    dataHtml = `<p>账号: ${e.data.gameId}</p>`;
+                } else if (e.data.type === 'physical') {
+                    dataHtml = `<p>手机: ${e.data.phone}</p><p>地址: ${e.data.address}</p>`;
+                } else if (e.data.type === 'cashout') {
+                    dataHtml = e.data.qrImage ? `<img src="${e.data.qrImage}" style="max-width: 100px; border-radius: 8px;">` : '';
+                } else if (e.data.type === 'service') {
+                    dataHtml = `<p>${e.data.serviceContent}</p>`;
+                }
+
+                return `
+                    <div class="card" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                            <div>
+                                <h3 style="color: var(--primary);">${e.userName}</h3>
+                                <p style="color: var(--accent);">${e.productName} | ${e.points}积分</p>
+                            </div>
+                            <span class="role-badge ${e.status === 'completed' ? 'role-high' : 'role-medium'}">
+                                ${e.status === 'completed' ? '已完成' : '处理中'}
+                            </span>
+                        </div>
+                        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">
+                            ${dataHtml}
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            ${e.status === 'pending' ? `
+                                <button class="btn btn-small btn-success" onclick="completeExchangeRecord('${e.id}')">完成兑换</button>
+                            ` : ''}
+                            <button class="btn btn-small btn-danger" onclick="deleteExchangeRecord('${e.id}')">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterExchanges() {
+            const search = document.getElementById('exchangeSearchInput').value.toLowerCase();
+            const exchanges = DB.get('exchanges').filter(e => 
+                e.userName.toLowerCase().includes(search) || 
+                e.productName.toLowerCase().includes(search)
+            );
+            renderExchangeRecords(exchanges);
+        }
+
+        function completeExchangeRecord(exchangeId) {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            let exchanges = DB.get('exchanges');
+            const index = exchanges.findIndex(e => e.id === exchangeId);
+            if (index !== -1) {
+                exchanges[index].status = 'completed';
+                DB.set('exchanges', exchanges);
+                refreshExchangeManagePage();
+                showToast('兑换已完成');
+            }
+        }
+
+        function deleteExchangeRecord(exchangeId) {
+            if (!checkPermission('medium')) {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            showConfirm('⚠️', '确认删除', '确定要删除此兑换记录吗？', () => {
+                let exchanges = DB.get('exchanges');
+                exchanges = exchanges.filter(e => e.id !== exchangeId);
+                DB.set('exchanges', exchanges);
+                refreshExchangeManagePage();
+                showToast('记录已删除');
+            });
+        }
+
+        // ==================== 系统维护 ====================
+        function refreshMaintenancePage() {
+            if (currentAdmin.level !== 'creator') {
+                showPermissionDenied('maintenancePage');
+                return;
+            }
+
+            const maintenance = DB.get('maintenance');
+            const btn = document.getElementById('maintenanceToggleBtn');
+            const statusText = document.getElementById('maintenanceStatusText');
+
+            if (maintenance.on) {
+                btn.textContent = '关闭维护';
+                btn.className = 'btn btn-success';
+                statusText.textContent = '当前状态：维护中';
+                statusText.style.color = '#ff6b6b';
+            } else {
+                btn.textContent = '开启维护';
+                btn.className = 'btn btn-danger';
+                statusText.textContent = '当前状态：正常运行';
+                statusText.style.color = '#00d4ff';
+            }
+
+            document.getElementById('compensationPointsInput').value = maintenance.compensation;
+
+            // 维护记录
+            const records = DB.get('maintenanceRecords');
+            document.getElementById('maintenanceRecordsList').innerHTML = records.length === 0 ?
+                '<p style="color: var(--text-muted);">暂无维护记录</p>' :
+                records.reverse().map(r => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>${r.action === 'start' ? '开启维护' : '关闭维护'}</h4>
+                            <p>补偿积分: ${r.compensation || 0}</p>
+                        </div>
+                        <div>${new Date(r.createdAt).toLocaleString()}</div>
+                    </div>
+                `).join('');
+        }
+
+        function toggleMaintenance() {
+            if (currentAdmin.level !== 'creator') {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            let maintenance = DB.get('maintenance');
+            maintenance.on = !maintenance.on;
+            
+            // 记录
+            const records = DB.get('maintenanceRecords');
+            records.push({
+                action: maintenance.on ? 'start' : 'end',
+                compensation: maintenance.compensation,
+                createdAt: new Date().toISOString()
+            });
+            DB.set('maintenanceRecords', records);
+
+            if (!maintenance.on && maintenance.compensation > 0) {
+                // 维护结束，发放补偿
+                let users = DB.get('users');
+                users.forEach(u => u.points += maintenance.compensation);
+                DB.set('users', users);
+                showToast(`维护已结束，已向所有用户发放 ${maintenance.compensation} 积分补偿`);
+            }
+
+            // 如果关闭维护，强制所有用户退出
+            if (!maintenance.on) {
+                currentUser = null;
+                currentAdmin = null;
+                sessionStorage.removeItem('currentUser');
+                sessionStorage.removeItem('currentAdmin');
+                showPage('loginPage');
+            }
+
+            DB.set('maintenance', maintenance);
+            refreshMaintenancePage();
+        }
+
+        function setCompensation() {
+            if (currentAdmin.level !== 'creator') {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const compensation = parseInt(document.getElementById('compensationPointsInput').value) || 0;
+            let maintenance = DB.get('maintenance');
+            maintenance.compensation = compensation;
+            DB.set('maintenance', maintenance);
+
+            showToast('补偿积分已保存');
+        }
+
+        // ==================== 创作者代签 ====================
+        function refreshCreatorSignPage() {
+            if (currentAdmin.level !== 'creator') {
+                showPermissionDenied('creatorSignPage');
+                return;
+            }
+
+            const users = DB.get('users');
+            document.getElementById('proxySignUserSelect').innerHTML = '<option value="">-- 选择用户 --</option>' +
+                users.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+
+            document.getElementById('proxyFeeInput').value = DB.get('proxyFee');
+
+            const records = DB.get('proxySignRecords');
+            document.getElementById('proxySignRecordsList').innerHTML = records.length === 0 ?
+                '<p style="color: var(--text-muted);">暂无代签记录</p>' :
+                records.reverse().map(r => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>${r.userName}</h4>
+                            <p>签到 ${r.days} 天 | 手续费 ${r.fee} 积分</p>
+                        </div>
+                        <div>${new Date(r.createdAt).toLocaleString()}</div>
+                    </div>
+                `).join('');
+        }
+
+        function proxySign() {
+            if (currentAdmin.level !== 'creator') {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const userName = document.getElementById('proxySignUserSelect').value;
+            const days = parseInt(document.getElementById('proxySignDaysInput').value);
+            const feePercent = parseInt(document.getElementById('proxyFeeInput').value) || 10;
+
+            if (!userName || !days || days < 1) {
+                showToast('请选择用户并输入有效天数', 'error');
+                return;
+            }
+
+            let users = DB.get('users');
+            const userIndex = users.findIndex(u => u.name === userName);
+
+            if (userIndex === -1) {
+                showToast('用户不存在', 'error');
+                return;
+            }
+
+            const rules = DB.get('signRules');
+            const basePoints = rules.length > 0 ? rules[rules.length - 1].points : 10;
+            const totalPoints = basePoints * days;
+            const fee = Math.floor(totalPoints * feePercent / 100);
+
+            // 扣除手续费
+            if (users[userIndex].points < fee) {
+                showToast('用户积分不足支付手续费', 'error');
+                return;
+            }
+
+            // 更新用户积分（增加签到积分，扣除手续费）
+            users[userIndex].points += (totalPoints - fee);
+            users[userIndex].signDays += days;
+
+            const today = new Date().toDateString();
+            for (let i = 0; i < days; i++) {
+                users[userIndex].signHistory.push({
+                    date: today,
+                    points: basePoints
+                });
+            }
+
+            DB.set('users', users);
+
+            // 记录
+            const records = DB.get('proxySignRecords');
+            records.push({
+                userName,
+                days,
+                fee,
+                totalPoints,
+                createdAt: new Date().toISOString()
+            });
+            DB.set('proxySignRecords', records);
+
+            // 保存手续费比例
+            DB.set('proxyFee', feePercent);
+
+            refreshCreatorSignPage();
+            showToast(`代签成功！${userName} 获得 ${totalPoints} 积分，扣除 ${fee} 积分手续费`);
+        }
+
+        // ==================== 添加管理员 ====================
+        function refreshAddAdminPage() {
+            if (currentAdmin.level !== 'creator') {
+                showPermissionDenied('addAdminPage');
+                return;
+            }
+
+            const admins = DB.get('admins').filter(a => a.role !== 'creator');
+            
+            document.getElementById('adminList').innerHTML = admins.length === 0 ?
+                '<p style="color: var(--text-muted);">暂无管理员</p>' :
+                admins.map(a => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <h4>${a.account}</h4>
+                            <p>等级: <span class="role-badge role-${a.level}">${getRoleName(a.role)}</span></p>
+                        </div>
+                        <button class="btn btn-small btn-danger" onclick="deleteAdmin('${a.account}')">删除</button>
+                    </div>
+                `).join('');
+        }
+
+        function addAdmin() {
+            if (currentAdmin.level !== 'creator') {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            const account = document.getElementById('newAdminAccountInput').value.trim();
+            const password = document.getElementById('newAdminPasswordInput').value;
+            const level = document.getElementById('newAdminLevelInput').value;
+
+            if (!account || !password) {
+                showToast('请填写完整的账号信息', 'error');
+                return;
+            }
+
+            const admins = DB.get('admins');
+            if (admins.find(a => a.account === account)) {
+                showToast('账号已存在', 'error');
+                return;
+            }
+
+            admins.push({
+                account,
+                password,
+                role: level,
+                level: level,
+                createdBy: currentAdmin.account
+            });
+            DB.set('admins', admins);
+
+            document.getElementById('newAdminAccountInput').value = '';
+            document.getElementById('newAdminPasswordInput').value = '';
+
+            refreshAddAdminPage();
+            showToast(`管理员 ${account} 创建成功`);
+        }
+
+        function deleteAdmin(account) {
+            if (currentAdmin.level !== 'creator') {
+                showToast('权限不足', 'error');
+                return;
+            }
+
+            showConfirm('⚠️', '确认删除', `确定要删除管理员 "${account}" 吗？`, () => {
+                let admins = DB.get('admins');
+                admins = admins.filter(a => a.account !== account);
+                DB.set('admins', admins);
+
+                // 如果删除的是当前管理员，强制退出
+                if (currentAdmin && currentAdmin.account === account) {
+                    logout();
+                }
+
+                refreshAddAdminPage();
+                showToast('管理员已删除');
+            });
+        }
+
+        // ==================== 确认对话框 ====================
+        let pendingAction = null;
+
+        function showConfirm(icon, title, message, action) {
+            document.getElementById('confirmIcon').textContent = icon;
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            pendingAction = action;
+            openModal('confirmModal');
+        }
+
+        function confirmAction() {
+            if (pendingAction) {
+                pendingAction();
+                pendingAction = null;
+            }
+            closeModal('confirmModal');
+        }
+
+        // ==================== 权限不足提示 ====================
+        function showPermissionDenied(pageId) {
+            document.getElementById(pageId).innerHTML = `
+                <div class="permission-denied">
+                    <div class="icon">🔒</div>
+                    <h3>权限不足</h3>
+                    <p>您没有权限访问此页面</p>
+                    <button class="btn btn-secondary" onclick="showPage('adminPage')">返回后台</button>
+                </div>
+            `;
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        // ==================== PWA 安装提示 ====================
+        let deferredPrompt;
+        const installBanner = document.createElement('div');
+        installBanner.id = 'installBanner';
+        installBanner.style.cssText = `
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #12122a, #1a1a3a);
+            border-top: 1px solid rgba(0, 212, 255, 0.3);
+            padding: 15px 20px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 9999;
+            animation: slideUp 0.3s ease;
+        `;
+        installBanner.innerHTML = `
+            <div style="flex: 1;">
+                <div style="color: #00d4ff; font-weight: bold;">安装应用到手机</div>
+                <div style="color: #888; font-size: 0.85rem;">添加到主屏幕，随时快速访问</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="installApp()" style="
+                    background: linear-gradient(135deg, #00d4ff, #0099cc);
+                    color: #000;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    cursor: pointer;
+                ">安装</button>
+                <button onclick="dismissInstallBanner()" style="
+                    background: rgba(255,255,255,0.1);
+                    color: #888;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                ">✕</button>
+            </div>
+        `;
+        document.body.appendChild(installBanner);
+
+        function showInstallBanner() {
+            installBanner.style.display = 'flex';
+        }
+
+        function dismissInstallBanner() {
+            installBanner.style.display = 'none';
+            localStorage.setItem('installBannerDismissed', 'true');
+        }
+
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    showToast('应用安装成功！');
+                }
+                deferredPrompt = null;
+                dismissInstallBanner();
+            }
+        }
+
+        // ==================== 初始化 ====================
+        function init() {
+            initData();
+
+            // 检查维护状态
+            const maintenance = DB.get('maintenance');
+            if (maintenance.on) {
+                openModal('maintenanceModal');
+            }
+
+            // 检查会话存储
+            const savedUser = sessionStorage.getItem('currentUser');
+            const savedAdmin = sessionStorage.getItem('currentAdmin');
+
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showPage('userPage');
+            } else if (savedAdmin) {
+                currentAdmin = JSON.parse(savedAdmin);
+                showPage('adminPage');
+            } else {
+                showPage('loginPage');
+            }
+
+            // 登录标签切换
+            document.querySelectorAll('.login-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    showTab(tab.dataset.tab);
+                });
+            });
+
+            // 回车登录
+            document.getElementById('userNameInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginAsUser();
+            });
+            document.getElementById('adminAccountInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginAsAdmin();
+            });
+            document.getElementById('adminPasswordInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginAsAdmin();
+            });
+
+            // 自动填充记住的账号密码
+            const rememberedAccount = localStorage.getItem('rememberedAdminAccount');
+            const rememberedPassword = localStorage.getItem('rememberedAdminPassword');
+            if (rememberedAccount) {
+                document.getElementById('adminAccountInput').value = rememberedAccount;
+            }
+            if (rememberedPassword) {
+                document.getElementById('adminPasswordInput').value = rememberedPassword;
+                document.getElementById('rememberAdminCheck').checked = true;
+            }
+        }
+
+        // ==================== 注册 Service Worker ====================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker 注册成功:', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker 注册失败:', err);
+                    });
+
+                // 监听安装提示事件
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    // 只有在没有关闭过提示的情况下才显示
+                    if (!localStorage.getItem('installBannerDismissed')) {
+                        setTimeout(() => {
+                            if (!document.getElementById('installBanner').classList.contains('hidden')) {
+                                showInstallBanner();
+                            }
+                        }, 3000); // 3秒后显示
+                    }
+                });
+
+                // 监听安装完成
+                window.addEventListener('appinstalled', () => {
+                    dismissInstallBanner();
+                    showToast('🎉 应用安装成功！');
+                    deferredPrompt = null;
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

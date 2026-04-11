@@ -1073,16 +1073,16 @@
     <div class="bg-animation"></div>
 
     <!-- PWA 安装横幅 -->
-    <div class="install-banner" id="installBanner">
+    <div class="install-banner" id="installBanner" style="display: none;">
         <div class="install-banner-content">
             <div class="install-banner-icon">📱</div>
             <div class="install-banner-text">
-                <h4>安装应用到手机</h4>
-                <p>添加到主屏幕，随时访问更方便</p>
+                <h4 id="installBannerTitle">安装应用到手机</h4>
+                <p id="installBannerDesc">添加到主屏幕，随时快速访问</p>
             </div>
         </div>
         <div>
-            <button class="install-banner-btn" id="installBtn" onclick="installApp()">立即安装</button>
+            <button class="install-banner-btn" onclick="installApp()">立即安装</button>
             <button class="install-banner-close" onclick="closeInstallBanner()">×</button>
         </div>
     </div>
@@ -3375,66 +3375,34 @@
             document.getElementById(pageId).classList.add('active');
         }
 
-        // ==================== PWA 安装提示 ====================
-        let deferredPrompt;
-        const installBanner = document.createElement('div');
-        installBanner.id = 'installBanner';
-        installBanner.style.cssText = `
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #12122a, #1a1a3a);
-            border-top: 1px solid rgba(0, 212, 255, 0.3);
-            padding: 15px 20px;
-            display: none;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 9999;
-            animation: slideUp 0.3s ease;
-        `;
-        installBanner.innerHTML = `
-            <div style="flex: 1;">
-                <div style="color: #00d4ff; font-weight: bold;">安装应用到手机</div>
-                <div style="color: #888; font-size: 0.85rem;">添加到主屏幕，随时快速访问</div>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="installApp()" style="
-                    background: linear-gradient(135deg, #00d4ff, #0099cc);
-                    color: #000;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    cursor: pointer;
-                ">安装</button>
-                <button onclick="dismissInstallBanner()" style="
-                    background: rgba(255,255,255,0.1);
-                    color: #888;
-                    border: 1px solid rgba(255,255,255,0.2);
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                ">✕</button>
-            </div>
-        `;
-        document.body.appendChild(installBanner);
-
-        // ==================== 安装横幅功能 ====================
+        // ==================== PWA 安装横幅功能 ====================
         let deferredPrompt = null;
 
         function showInstallBanner() {
             const banner = document.getElementById('installBanner');
-            if (banner) {
-                banner.classList.add('show');
+            const closed = localStorage.getItem('installBannerClosed') === 'true';
+            const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+            
+            if (banner && !closed && !isInstalled) {
+                // 检测设备类型并更新提示文字
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                
+                if (isIOS) {
+                    document.getElementById('installBannerTitle').textContent = '📱 iPhone 安装教程';
+                    document.getElementById('installBannerDesc').textContent = '点击查看详细步骤';
+                } else {
+                    document.getElementById('installBannerTitle').textContent = '📲 安装应用到手机';
+                    document.getElementById('installBannerDesc').textContent = '添加到主屏幕，随时快速访问';
+                }
+                
+                banner.style.display = 'flex';
             }
         }
 
         function closeInstallBanner() {
             const banner = document.getElementById('installBanner');
             if (banner) {
-                banner.classList.remove('show');
-                // 记住用户关闭，下次不自动显示
+                banner.style.display = 'none';
                 localStorage.setItem('installBannerClosed', 'true');
             }
         }
@@ -3445,40 +3413,81 @@
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') {
-                    showToast('应用安装成功！');
+                    showToast('🎉 应用安装成功！');
                 }
                 deferredPrompt = null;
                 closeInstallBanner();
                 return;
             }
 
-            // iOS: 显示安装提示
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            // iOS: 显示安装提示弹窗
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (isIOS) {
-                alert('📱 iPhone 安装方法：\n\n1. 点击浏览器底部的分享按钮 (↑)\n2. 向下滚动\n3. 点击"添加到主屏幕"\n4. 点击右上角"添加"');
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.9);
+                    z-index: 10001;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                `;
+                modal.innerHTML = `
+                    <div style="
+                        background: #12122a;
+                        border-radius: 16px;
+                        padding: 30px;
+                        max-width: 350px;
+                        width: 100%;
+                        border: 1px solid rgba(0,212,255,0.5);
+                        text-align: center;
+                    ">
+                        <h3 style="color: #00d4ff; margin-bottom: 25px;">📱 iPhone/iPad 安装教程</h3>
+                        <div style="color: #e0e0e0; line-height: 2.2; text-align: left;">
+                            <p style="margin-bottom: 15px;">1️⃣ 点击浏览器底部的 <strong style="color: #ffd93d;">分享按钮</strong> ⬆️</p>
+                            <p style="margin-bottom: 15px;">2️⃣ 向下滚动找到 <strong style="color: #ffd93d;">"添加到主屏幕"</strong></p>
+                            <p style="margin-bottom: 15px;">3️⃣ 点击该项</p>
+                            <p>4️⃣ 点击右上角 <strong style="color: #ffd93d;">"添加"</strong> 完成</p>
+                        </div>
+                        <button onclick="this.closest('[style*=\\"position: fixed\\"]').remove()" style="
+                            width: 100%;
+                            margin-top: 25px;
+                            padding: 15px;
+                            background: linear-gradient(135deg, #00d4ff, #0099cc);
+                            color: #000;
+                            border: none;
+                            border-radius: 10px;
+                            font-size: 1rem;
+                            font-weight: bold;
+                            cursor: pointer;
+                        ">知道了</button>
+                    </div>
+                `;
+                modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove();
+                };
+                document.body.appendChild(modal);
             } else {
-                // 浏览器不支持时，提示手动安装
-                showToast('请使用 Chrome 浏览器访问，然后点击浏览器菜单 → 添加到主屏幕', 'warning');
+                // Android 非 Chrome 情况
+                showToast('📱 请用 Chrome 打开，然后点击浏览器菜单 → 添加到主屏幕', 'warning');
             }
         }
 
-        function checkInstallable() {
-            const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
-            const bannerClosed = localStorage.getItem('installBannerClosed') === 'true';
-            const banner = document.getElementById('installBanner');
+        // 监听 PWA 安装提示事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallBanner();
+        });
 
-            // 如果已安装或用户关闭了横幅，不显示
-            if (isInstalled || bannerClosed) {
-                if (banner) banner.classList.remove('show');
-                return;
-            }
-
-            // 检测设备类型并显示横幅
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            if (isMobile || window.innerWidth < 768) {
-                showInstallBanner();
-            }
-        }
+        // 监听安装完成
+        window.addEventListener('appinstalled', () => {
+            closeInstallBanner();
+            showToast('🎉 应用安装成功！');
+            deferredPrompt = null;
+        });
 
         // ==================== 初始化 ====================
         function init() {
@@ -3532,6 +3541,17 @@
                 document.getElementById('adminPasswordInput').value = rememberedPassword;
                 document.getElementById('rememberAdminCheck').checked = true;
             }
+
+            // 页面加载后，显示安装横幅
+            setTimeout(() => {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                // iOS 立即显示，Android 延迟显示（等 beforeinstallprompt）
+                if (isIOS) {
+                    showInstallBanner();
+                } else {
+                    setTimeout(showInstallBanner, 3000);
+                }
+            }, 1500);
         }
 
         // ==================== PWA 初始化 ====================
@@ -3547,33 +3567,6 @@
                     });
             });
         }
-
-        // 监听 PWA 安装提示
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            // 检测是否已安装或已关闭
-            checkInstallable();
-        });
-
-        // 监听安装完成
-        window.addEventListener('appinstalled', () => {
-            closeInstallBanner();
-            showToast('🎉 应用安装成功！');
-            deferredPrompt = null;
-        });
-
-        // 页面加载后检查是否显示安装横幅
-        window.addEventListener('load', () => {
-            setTimeout(checkInstallable, 1000);
-        });
-
-        // 页面可见性变化时也检查
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                checkInstallable();
-            }
-        });
 
         init();
     </script>
